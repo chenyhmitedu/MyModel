@@ -1,3 +1,2705 @@
+
+Get responses tailored to you
+
+Log in to get answers based on saved chats, plus create images and upload files.
+
+
+Log in
+
+in Julia docstrings should be enclosed by a pair of " or """?
+
+In Julia, docstrings should be enclosed in triple quotes """ ... """, not a single pair of double quotes.
+
+Example:
+
+"""
+Compute the square of a number.
+
+# Arguments
+- `x`: A number.
+
+# Returns
+The square of `x`.
+"""
+function square(x)
+    x^2
+end
+A single pair of double quotes ("...") creates a regular string value:
+
+s = "hello"
+While Julia technically allows any string literal immediately before a definition to serve as documentation, the standard convention—and what you'll see throughout Julia's documentation and package ecosystem—is to use triple-quoted strings for docstrings because they support multi-line text cleanly.
+
+You can then access the documentation with:
+
+?square
+in the Julia REPL help mode.
+
+
+
+
+
+
+But in https://docs.julialang.org/en/v1/manual/documentation/#Functions-and-Methods-2     why the examples use "..." instead of """..."""
+
+Good observation. The examples in the Julia manual often use single-line string literals as docstrings:
+
+"Tell whether there are too many pigs."
+too_many_pigs(pigs::Int) = pigs > 1
+instead of:
+
+"""
+Tell whether there are too many pigs.
+"""
+too_many_pigs(pigs::Int) = pigs > 1
+This works because Julia's documentation system treats any string literal immediately preceding an object definition as documentation metadata. The string doesn't have to be triple-quoted.
+
+The manual itself states:
+
+Any string appearing just before an object (function, macro, type, instance) will be interpreted as documenting it.
+
+So both forms are valid:
+
+"Add two numbers."
+add(x, y) = x + y
+and
+
+"""
+Add two numbers.
+"""
+add(x, y) = x + y
+The reason you'll usually see """...""" in real packages is practical:
+
+Supports multiple lines naturally.
+
+Allows Markdown sections (# Arguments, # Examples, etc.).
+
+Easier to maintain as documentation grows.
+
+Matches the style used throughout Julia's Base and standard libraries.
+
+A common convention is:
+
+Short one-line docs → "..." is fine.
+
+Anything more than one line → use """...""".
+
+For example, these are equivalent from Julia's perspective:
+
+"Compute a square."
+square(x) = x^2
+"""
+Compute a square.
+"""
+square(x) = x^2
+but if you later add examples or argument descriptions, the triple-quoted version becomes much more convenient.
+
+
+
+
+
+
+@doc raw"""
+...
+"""      What does raw mean
+
+Yes I am following the Documenter instructions, and they don't work
+
+Thanks. Your pwd() is:
+
+D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel
+which is exactly where I'd expect the package root to be.
+
+That means the next question is: does this directory actually contain a Project.toml?
+
+In Julia, run:
+
+readdir()
+or
+
+isfile("Project.toml")
+If isfile("Project.toml") returns false, then you've found the problem: MyModel is not currently a Julia package from Pkg's perspective.
+
+A valid package root needs at least:
+
+MyModel/
+├── Project.toml
+└── src/
+    └── MyModel.jl
+If you don't have a Project.toml, you can create one automatically:
+
+pkg> generate MyModel
+(or copy the generated Project.toml into your existing project).
+
+Alternatively, if you're already inside the project and have src/MyModel.jl, create a Project.toml like:
+
+name = "MyModel"
+uuid = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+version = "0.1.0"
+The UUID can be generated with:
+
+julia> using UUIDs
+julia> uuid4()
+Then develop .. should work.
+
+Could you run:
+
+julia> isfile("Project.toml")
+and tell me whether it returns true or false? That's the fastest way to confirm what's happening.
+
+
+
+
+
+
+I do have Project.toml inside MyModel and inside src there is MyModel.jl. why do I still have the error
+
+If:
+
+pwd() is .../MyModel
+
+MyModel/Project.toml exists
+
+MyModel/src/MyModel.jl exists
+
+then develop .. should work only when the active environment is MyModel/docs/Project.toml.
+
+The error suggests that the environment you activated may not actually be MyModel/docs.
+
+Let's verify with:
+
+julia> Base.active_project()
+What does it print?
+
+If everything is correct, it should be something like:
+
+D:\...\MyModel\docs\Project.toml
+Another possibility
+How exactly did you create docs/Project.toml?
+
+If you manually created it and only put:
+
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+then that's fine.
+
+But if you're running:
+
+pkg> activate docs
+from the package root and there is no docs/Project.toml yet, Julia may have created a different environment than you expect.
+
+Try:
+
+pkg> activate docs
+pkg> st
+and then:
+
+julia> Base.active_project()
+A workaround that avoids relative paths entirely
+Instead of:
+
+(docs) pkg> develop ..
+try:
+
+(docs) pkg> develop .
+from the package root before activating docs, or use an absolute path:
+
+(docs) pkg> develop D:/work/MIT Dropbox/Yen-Heng Chen/2025/2025-01_Julia/Exercises/MyModel
+If that succeeds, then the issue is simply how Pkg is resolving .. relative to the active environment.
+
+Most useful diagnostic
+Please paste the output of:
+
+julia> Base.active_project()
+and
+
+pkg> st
+from the docs environment. That will tell us exactly which environment Pkg is operating on and why develop .. is looking in the wrong place.
+
+
+(docs) pkg> develop . works. Thanks. Then what's the next step in creating the document
+
+Great—that tells us what happened.
+
+When you're in MyModel/ and activate docs, the active environment is MyModel/docs, but the path argument to develop is resolved relative to your current working directory, not relative to the environment. So:
+
+(docs) pkg> develop .
+means "develop the package in MyModel/", which is correct.
+
+Now let's create the minimal documentation site.
+
+1. Check that MyModel is in the docs environment
+(docs) pkg> st
+You should see something like:
+
+Status `docs/Project.toml`
+  [e30172f5] Documenter
+  [20dce7eb] MyModel v0.1.0 `.
+(or a path to your package).
+
+2. Create docs/make.jl
+using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel",
+    modules = [MyModel],
+)
+3. Create docs/src/index.md
+# MyModel
+
+Welcome to the documentation.
+
+## API
+
+```@autodocs
+Modules = [MyModel]
+```
+The @autodocs block automatically extracts docstrings from your module.
+
+4. Add a docstring to something
+For example, in src/MyModel.jl:
+
+module MyModel
+
+export square
+
+"""
+Compute the square of a number.
+
+# Examples
+
+```julia
+square(3)
+# 9
+"""
+square(x) = x^2
+
+end
+
+
+---
+
+## 5. Build the docs
+
+From the package root:
+
+```bash
+julia --project=docs docs/make.jl
+If successful, you'll get:
+
+docs/
+├── build/
+│   └── index.html
+6. Open the generated site
+Open:
+
+docs/build/index.html
+in your browser.
+
+You should see:
+
+The title "MyModel"
+
+The welcome text
+
+Documentation for square
+
+7. (Recommended) Add strict checking
+Once things work, modify make.jl to:
+
+using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel",
+    modules = [MyModel],
+    checkdocs = :exports,
+)
+This warns you if you export functions but forget to document them.
+
+If you get an error when running
+
+julia --project=docs docs/make.jl
+paste the full error message and I can help debug the next step.
+
+
+In step 5. build the docs, I got the error message: julia> julia --project=docs docs/make.jl
+ERROR: ParseError:
+# Error @ REPL[21]:1:7
+julia --project=docs docs/make.jl
+#     └┘ ── invalid operator
+Stacktrace:
+ [1] top-level scope
+   @ none:1
+
+The problem is that you typed
+
+julia --project=docs docs/make.jl
+inside the Julia REPL.
+
+The command
+
+julia --project=docs docs/make.jl
+is a shell/terminal command, not Julia code.
+
+Option 1: Run from your terminal
+Exit the REPL (or open a separate terminal) and run:
+
+cd D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel
+
+julia --project=docs docs/make.jl
+Option 2: Run from inside Julia
+Stay in the REPL and do:
+
+julia> include("docs/make.jl")
+or, more faithfully:
+
+julia> using Pkg
+julia> Pkg.activate("docs")
+julia> include("docs/make.jl")
+This is often the easiest way when you're just getting started.
+
+If you use include("docs/make.jl") and get another error, paste the full stack trace and we can continue debugging from there. The next common issue is either:
+
+Package MyModel not found
+or
+
+Package Documenter not found
+depending on whether the docs environment was activated correctly.
+
+
+
+
+
+
+julia> include("docs/make.jl")
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+[ Info: ExpandTemplates: expanding markdown templates.
+[ Info: CrossReferences: building cross-references.
+[ Info: CheckDocument: running document checks.
+┌ Error: 1 docstring not included in the manual:
+│ 
+│     MyModel.CGE_M21 :: Union{Tuple{}, Tuple{Any}, Tuple{Any, Any}}
+│ 
+│ These are docstrings in the checked modules (configured with the modules keyword)
+│ that are not included in canonical @docs or @autodocs blocks.
+└ @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\utilities.jl:47
+[ Info: Populate: populating indices.
+ERROR: LoadError: makedocs encountered an error [:missing_docs] -- terminating build before rendering.
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.RenderDocument}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:259
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+This is actually good news: Documenter is working. The build got all the way to the documentation checks.
+
+The problem is:
+
+MyModel.CGE_M21
+has a docstring, but Documenter couldn't find it in the generated manual.
+
+Notice the message:
+
+1 docstring not included in the manual
+This usually happens when you have:
+
+"""
+Some documentation.
+"""
+const CGE_M21 = ...
+or
+
+"""
+Some documentation.
+"""
+function CGE_M21(...)
+    ...
+end
+but the object isn't being picked up by your @autodocs block.
+
+Quick fix: disable strict checking
+For now, change docs/make.jl to:
+
+using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel",
+    modules = [MyModel],
+    checkdocs = :none,
+)
+Then run:
+
+include("docs/make.jl")
+again.
+
+This should generate docs/build/index.html so you can see the documentation site.
+
+Better fix: understand why CGE_M21 isn't included
+Can you show:
+
+The definition of CGE_M21.
+
+Your docs/src/index.md.
+
+Your current docs/make.jl.
+
+My guess is that CGE_M21 is not exported, and your @autodocs block may be filtering objects. For example:
+
+```@autodocs
+Modules = [MyModel]
+Public = true
+```
+would exclude non-public names.
+
+Or if CGE_M21 is defined inside a submodule:
+
+module MyModel
+module Data
+    ...
+end
+end
+then Modules = [MyModel] won't necessarily collect everything.
+
+For now, the important thing is: Documenter is installed correctly and your docs build is essentially working. The error is a documentation completeness check, not a setup failure.
+
+
+"""
+    CGE_M21(trx=0.0, lbs=1.0)
+    
+"""   This is my docstring in MyModel.jl right above function CGE_M21(trx=0, lbs=1). but when I run include("docs/make.jl"), I got the error: Error: 1 docstring not included in the manual:
+│ 
+│     MyModel.CGE_M21 :: Union{Tuple{}, Tuple{Any}, Tuple{Any, Any}}
+│ 
+│ These are docstrings in the checked modules (configured with the modules keyword)
+│ that are not included in canonical @docs or @autodocs blocks.
+└ @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\utilities.jl:47
+[ Info: Populate: populating indices.
+ERROR: LoadError: makedocs encountered an error [:missing_docs] -- terminating build before rendering.
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.RenderDocument}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:259
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+The docstring itself is fine. The error is not saying the docstring is malformed.
+
+It's saying:
+
+I found a docstring for MyModel.CGE_M21, but I couldn't find any place in the manual where that docstring is included.
+
+This usually means one of these:
+
+Case 1: Your index.md is not actually including the object
+Show me your docs/src/index.md.
+
+If it contains:
+
+# MyModel
+
+```@autodocs
+Modules = [MyModel]
+```
+then CGE_M21 should normally be included.
+
+Case 2: CGE_M21 is not exported
+Suppose your module looks like:
+
+module MyModel
+
+function CGE_M21(...)
+end
+
+end
+and your index.md contains:
+
+```@autodocs
+Modules = [MyModel]
+Public = true
+```
+or
+
+```@autodocs
+Modules = [MyModel]
+Private = false
+```
+then non-exported names are excluded.
+
+Check whether you have:
+
+export CGE_M21
+in your module.
+
+Case 3: @autodocs isn't seeing the function at all
+A quick test is to explicitly document it.
+
+Replace your index.md with:
+
+# MyModel
+
+```@docs
+CGE_M21
+```
+and rebuild:
+
+include("docs/make.jl")
+If that works, then the issue is with your @autodocs configuration.
+
+Case 4: Your makedocs is enforcing coverage
+You likely have something like:
+
+makedocs(
+    modules = [MyModel],
+)
+The modules argument tells Documenter:
+
+Check that every docstring in MyModel appears somewhere in the manual.
+
+That's why the build fails.
+
+To temporarily disable the check:
+
+makedocs(
+    sitename = "MyModel",
+    modules = [],
+)
+or
+
+makedocs(
+    sitename = "MyModel",
+    modules = [MyModel],
+    checkdocs = :none,
+)
+Then the site will build even if some docstrings are not referenced.
+
+The most useful thing now would be to paste:
+
+docs/src/index.md
+
+and
+
+docs/make.jl
+
+because the error is almost certainly in one of those two files, not in the CGE_M21 docstring.
+
+
+
+
+
+
+This is my index.md: # MyModel.jl
+
+Documentation for MyModel.jl
+
+That's exactly the issue.
+
+Your index.md currently contains only:
+
+# MyModel.jl
+
+Documentation for MyModel.jl
+There is no @docs or @autodocs block, so Documenter has nowhere to insert the docstring for CGE_M21.
+
+Documenter sees:
+
+A docstring exists for MyModel.CGE_M21
+
+makedocs(modules=[MyModel]) says "all docstrings should appear in the manual"
+
+But the manual never references CGE_M21
+
+Hence the error.
+
+Quick fix: document CGE_M21 explicitly
+Change docs/src/index.md to:
+
+# MyModel.jl
+
+Documentation for MyModel.jl
+
+## API
+
+```@docs
+CGE_M21
+```
+Then run:
+
+include("docs/make.jl")
+again.
+
+Better fix: automatically include everything
+If your package is small, use:
+
+# MyModel.jl
+
+Documentation for MyModel.jl
+
+## API
+
+```@autodocs
+Modules = [MyModel]
+```
+This tells Documenter:
+
+Find all documented objects in MyModel and include them automatically.
+
+Then every function with a docstring will appear in the generated docs.
+
+Why the error message happened
+You probably have something like:
+
+makedocs(
+    sitename = "MyModel",
+    modules = [MyModel],
+)
+The modules = [MyModel] argument enables a coverage check. It's very useful because it catches documented functions that you've forgotten to include in the manual.
+
+In your case it correctly noticed:
+
+MyModel.CGE_M21
+has documentation but is not referenced anywhere in index.md.
+
+After adding either @docs or @autodocs, the build should succeed and generate docs/build/index.html.
+
+
+Thank you! That works. Now, I added something in my docstring lines so they are: """
+    CGE_M21(trx=0.0, lbs=1.0)
+
+Markusen's M21 CGE example.
+
+1-region 2-sector 2-factor model.
+
+# Arguments
+- trx::Float64=0.0: the tax rate on X sector's primary inputs.
+- dim::Float64=1.0: the labor supply endowment index.
+
+# Examples
+jldoctest
+julia> using MyModel
+julia> CGE_M21
+Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+[...]
+Solver Status: LOCALLY_SOLVED
+Model Status: FEASIBLE_POINT9×3 DataFrame
+ Row │ var        value       margin       
+     │ MPSGESca…  Float64     Float64      
+─────┼─────────────────────────────────────
+   1 │ D[Y]         1.03551    0.0
+   2 │ D[X]         0.964062   0.0
+[...]
+
+"""  However, I got the error message that complains things between 
+jldoctest (line 18) and
+ (line 31): julia> include("docs/make.jl")
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+┌ Error: Unable to to evaluate doctest in src\MyModel.jl:18-31
+│ Consecutive julia> prompts must be separated by an empty line.
+│ 
+│ 
+jldoctest
+│ julia> using MyModel
+│ julia> CGE_M21
+│ Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+│ [...]
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINT9×3 DataFrame
+│  Row │ var        value       margin       
+│      │ MPSGESca…  Float64     Float64      
+│ ─────┼─────────────────────────────────────
+│    1 │ D[Y]         1.03551    0.0
+│    2 │ D[X]         0.964062   0.0
+│ [...]
+│
+
+└ @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\utilities.jl:47
+ERROR: LoadError: makedocs encountered a doctest error. Terminating build
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.Doctest}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:213
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+The error is coming from the doctest parser, before it even runs your code.
+
+In a jldoctest block, every REPL command must be followed by its output, and if you have multiple prompts, they must be separated properly. You currently have:
+
+```jldoctest
+julia> using MyModel
+julia> CGE_M21
+Reading options file ...
+...
+```
+Documenter sees two consecutive julia> prompts with no output between them and complains:
+
+Consecutive julia> prompts must be separated by an empty line.
+
+Option 1: Put both commands on one line
+```jldoctest
+julia> using MyModel; CGE_M21()
+Reading options file ...
+[...]
+Solver Status: LOCALLY_SOLVED
+...
+```
+Option 2: Show the output of using MyModel
+Since using MyModel produces no output, insert a blank line after it:
+
+```jldoctest
+julia> using MyModel
+
+julia> CGE_M21()
+Reading options file ...
+[...]
+Solver Status: LOCALLY_SOLVED
+...
+```
+Another issue you'll probably hit next
+Your example output contains:
+
+Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+The temporary filename changes every run, so a true doctest will likely fail because the actual output won't exactly match the expected output.
+
+For output that varies, you have a few choices:
+
+Use a normal code block
+If you only want to show an example and don't need automatic testing:
+
+```julia
+using MyModel
+CGE_M21()
+```
+Use julia-repl
+```julia-repl
+julia> using MyModel
+julia> CGE_M21()
+```
+This renders like a REPL session but is not verified as a doctest.
+
+Use doctest output filters
+Documenter supports filtering variable output, but for a first documentation site, I'd recommend switching this example to julia-repl until everything else is working.
+
+For a function like CGE_M21() that launches a solver and prints pages of output, most package authors use:
+
+# Examples
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+```
+rather than a strict jldoctest, because solver logs and temporary file names tend to change between runs.
+
+
+
+
+
+
+Now I have this: """
+    CGE_M21(trx=0.0, lbs=1.0)
+
+Markusen's M21 CGE example.
+
+1-region 2-sector 2-factor model.
+
+# Arguments
+- trx::Float64=0.0: the tax rate on X sector's primary inputs.
+- dim::Float64=1.0: the labor supply endowment index.
+
+# Examples
+jldoctest
+julia> using MyModel
+
+julia> CGE_M21
+Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+[...]
+Solver Status: LOCALLY_SOLVED
+Model Status: FEASIBLE_POINT9×3 DataFrame
+ Row │ var        value       margin       
+     │ MPSGESca…  Float64     Float64      
+─────┼─────────────────────────────────────
+   1 │ D[Y]         1.03551    0.0
+   2 │ D[X]         0.964062   0.0
+[...]
+
+"""  but still got the error: julia> include("docs/make.jl")
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+┌ Error: doctest failure in src\MyModel.jl:18-32
+│ 
+│ 
+jldoctest
+│ julia> using MyModel
+│ 
+│ julia> CGE_M21
+│ Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+│ [...]
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINT9×3 DataFrame
+│  Row │ var        value       margin       
+│      │ MPSGESca…  Float64     Float64      
+│ ─────┼─────────────────────────────────────
+│    1 │ D[Y]         1.03551    0.0
+│    2 │ D[X]         0.964062   0.0
+│ [...]
+│
+
+│ 
+│ Subexpression:
+│ 
+│ CGE_M21
+│ 
+│ Evaluated output:
+│ 
+│ CGE_M21 (generic function with 3 methods)
+│ 
+│ Expected output:
+│ 
+│ Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+│ [...]
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINT9×3 DataFrame
+│  Row │ var        value       margin       
+│      │ MPSGESca…  Float64     Float64      
+│ ─────┼─────────────────────────────────────
+│    1 │ D[Y]         1.03551    0.0
+│    2 │ D[X]         0.964062   0.0
+│ [...]
+│ 
+│   diff =
+│    Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+│    [...]
+│    Solver Status: LOCALLY_SOLVED
+│    Model Status: FEASIBLE_POINT9×3 DataFrame
+│     Row │ var        value       margin       
+│         │ MPSGESca…  Float64     Float64      
+│    ─────┼─────────────────────────────────────
+│       1 │ D[Y]         1.03551    0.0
+│       2 │ D[X]         0.964062   0.0
+│    [...]CGE_M21 (generic function with 3 methods)
+└ @ Documenter D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\src\MyModel.jl:18
+ERROR: LoadError: makedocs encountered a doctest error. Terminating build
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.Doctest}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:213
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+The new error is different, and it's actually very informative.
+
+Documenter evaluated:
+
+julia> CGE_M21
+and got:
+
+CGE_M21 (generic function with 3 methods)
+That's exactly what Julia should return when you reference a function without calling it.
+
+Your doctest expects the output from executing the function, but your example only refers to the function object.
+
+You wrote:
+
+julia> CGE_M21
+but you probably intended:
+
+julia> CGE_M21()
+or perhaps:
+
+julia> CGE_M21(0.0, 1.0)
+depending on how the function is meant to be called.
+
+However, there's a second issue: your output contains things like
+
+Reading options file C:/Users/Henry/AppData/Local/Temp/jl_E0DB.tmp
+and likely solver logs whose exact content changes from run to run.
+
+That makes jldoctest a poor fit. A doctest expects the actual output to match the documented output.
+
+For a solver/model-building function like this, I'd recommend using a non-tested example:
+
+# Examples
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+```
+or
+
+# Examples
+
+```julia
+using MyModel
+CGE_M21()
+```
+instead of jldoctest.
+
+If you really want a doctest, then the documented output must exactly match what CGE_M21() prints, including handling variable parts via Documenter's output filters. That's more advanced and usually not worth the effort for solver output.
+
+So the simplest fix is:
+
+Change jldoctest → julia-repl.
+
+Change CGE_M21 → CGE_M21().
+
+For example:
+
+# Examples
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+```
+Then include("docs/make.jl") should proceed without trying to verify the solver output.
+
+
+include("docs/make.jl")
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+┌ Error: doctest failure in src\MyModel.jl:18-24
+│ 
+│ 
+jldoctest
+│ julia> using MyModel
+│ 
+│ julia> CGE_M21
+│ 
+│ │ CGE_M21 (generic function with 3 methods)
+│ 
+│
+
+│ 
+│ Subexpression:
+│ 
+│ CGE_M21
+│ 
+│ Evaluated output:
+│ 
+│ CGE_M21 (generic function with 3 methods)
+│ 
+│ Expected output:
+│ 
+│ 
+│ │ CGE_M21 (generic function with 3 methods)
+│ 
+│   diff =
+│    
+│    │ CGE_M21 (generic function with 3 methods)
+└ @ Documenter D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\src\MyModel.jl:18
+ERROR: LoadError: makedocs encountered a doctest error. Terminating build
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.Doctest}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:213
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+You're very close. The problem now is that your expected output contains an extra │ character.
+
+Documenter is showing:
+
+Expected output:
+
+│ CGE_M21 (generic function with 3 methods)
+but the actual Julia output is:
+
+CGE_M21 (generic function with 3 methods)
+Notice the leading vertical bar │.
+
+This often happens when copying text from an error message or from a rendered document back into a docstring.
+
+Your doctest should be:
+
+```jldoctest
+julia> using MyModel
+
+julia> CGE_M21
+
+CGE_M21 (generic function with 3 methods)
+```
+Note:
+
+Blank line after the second prompt.
+
+No │ character.
+
+Output starts at the beginning of the line.
+
+Alternatively, since this example isn't really demonstrating anything useful (it only shows that CGE_M21 is a function), I'd write:
+
+# Examples
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+```
+and avoid doctesting it entirely.
+
+For functions that produce long solver logs, tables, temporary filenames, etc., julia-repl is generally the better choice than jldoctest.
+
+Could you paste the exact current contents of the # Examples section from your docstring? I suspect there's a stray │ character or indentation issue that isn't obvious from the error output.
+
+
+
+
+
+
+julia> include("docs/make.jl")
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+┌ Error: doctest failure in src\MyModel.jl:18-24
+│ 
+│ 
+jldoctest
+│ julia> using MyModel
+│ 
+│ julia> CGE_M21
+│ 
+│ CGE_M21 (generic function with 3 methods)
+│ 
+│
+
+│ 
+│ Subexpression:
+│ 
+│ CGE_M21
+│ 
+│ Evaluated output:
+│ 
+│ CGE_M21 (generic function with 3 methods)
+│ 
+│ Expected output:
+│ 
+│ 
+│ CGE_M21 (generic function with 3 methods)
+│ 
+│   diff =
+│    
+│    CGE_M21 (generic function with 3 methods)
+└ @ Documenter D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\src\MyModel.jl:18
+ERROR: LoadError: makedocs encountered a doctest error. Terminating build
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.Doctest}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:213
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+The clue is here:
+
+Expected output:
+
+<blank line>
+CGE_M21 (generic function with 3 methods)
+
+Evaluated output:
+
+CGE_M21 (generic function with 3 methods)
+Documenter is being very literal. It thinks your expected output contains an extra blank line before the function description.
+
+For a jldoctest, the format should be:
+
+```jldoctest
+julia> using MyModel
+
+julia> CGE_M21
+CGE_M21 (generic function with 3 methods)
+```
+Notice there is no blank line between:
+
+julia> CGE_M21
+and
+
+CGE_M21 (generic function with 3 methods)
+The output must immediately follow the prompt.
+
+In your docstring you likely have:
+
+```jldoctest
+julia> using MyModel
+
+julia> CGE_M21
+
+CGE_M21 (generic function with 3 methods)
+```
+with an extra blank line before the output.
+
+That said, this example is not very useful and is causing unnecessary doctest headaches. I'd strongly recommend either:
+
+A. Use a normal REPL example
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+```
+or
+
+B. Remove the output entirely
+
+# Examples
+
+```julia
+using MyModel
+CGE_M21()
+```
+For functions that run a solver and print tables, jldoctest is usually more trouble than it's worth because every line of output must match exactly.
+
+If you want to keep using jldoctest, paste the exact lines 18–24 of the docstring (including blank lines and indentation) and I can point to the exact offending line.
+
+
+ include("docs/make.jl")
+[ Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+┌ Error: doctest failure in src\MyModel.jl:18-95
+│ 
+│ 
+jldoctest
+│ julia> using MyModel
+│ 
+│ julia> CGE_M21
+│ CGE_M21 (generic function with 3 methods)
+│ 
+│ julia> CGE_M21()
+│ [...]
+│  > cumulative_iteration_limit 0
+│ Read of options file complete.
+│ 
+│ Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│ Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│ Preprocessed size   : 14
+│ 
+│ Major Iteration Log
+│ major minor  func  grad  residual    step  type prox    inorm  (label)
+│     0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│ 
+│ Major Iterations. . . . 0
+│ Minor Iterations. . . . 0
+│ Restarts. . . . . . . . 0
+│ Crash Iterations. . . . 0
+│ Gradient Steps. . . . . 0
+│ Function Evaluations. . 1
+│ Gradient Evaluations. . 1
+│ Basis Time. . . . . . . 0.000000
+│ Total Time. . . . . . . 0.000000
+│ Residual. . . . . . . . 0.000000e+00
+│ Postsolved residual: 0.0000e+00
+│ 
+│ 
+│ Solver Status: LOCALLY_SOLVED
+│ [...]
+│  > cumulative_iteration_limit 10000
+│ Read of options file complete.
+│ 
+│ Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│ Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│ 
+│ Preprocessed size   : 14
+│ 
+│ Crash Log
+│ major  func  diff  size  residual    step       prox   (label)
+│     0     0             0.0000e+00             0.0e+00 (z_p[D[X])
+│ 
+│ Major Iteration Log
+│ major minor  func  grad  residual    step  type prox    inorm  (label)
+│     0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│ 
+│ Major Iterations. . . . 0
+│ Minor Iterations. . . . 0
+│ Restarts. . . . . . . . 0
+│ Crash Iterations. . . . 0
+│ Gradient Steps. . . . . 0
+│ Function Evaluations. . 1
+│ Gradient Evaluations. . 1
+│ Basis Time. . . . . . . 0.000000
+│ Total Time. . . . . . . 0.000000
+│ Residual. . . . . . . . 0.000000e+00
+│ Postsolved residual: 0.0000e+00
+│ 
+│ 
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINT9×3 DataFrame
+│  Row │ var        value    margin  
+│      │ MPSGESca…  Float64  Float64 
+│ ─────┼─────────────────────────────
+│    1 │ D[Y]           1.0      0.0
+│    2 │ D[X]           1.0      0.0
+│    3 │ D[W]           1.0      0.0
+│    4 │ P[X]           1.0      0.0
+│    5 │ P[Y]           1.0      0.0
+│    6 │ P[W]           1.0      0.0
+│    7 │ P[L]           1.0      0.0
+│    8 │ P[K]           1.0      0.0
+│    9 │ CONS         200.0      0.0
+│ 
+│
+
+│ 
+│ Subexpression:
+│ 
+│ CGE_M21()
+│ 
+│ Evaluated output:
+│ 
+│ Reading options file C:\Users\Henry\AppData\Local\Temp\jl_19E8.tmp
+│  > cumulative_iteration_limit 0
+│ Read of options file complete.
+│ 
+│ Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│ Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│ Preprocessed size   : 14
+│ 
+│ Major Iteration Log
+│ major minor  func  grad  residual    step  type prox    inorm  (label)
+│     0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│ 
+│ Major Iterations. . . . 0
+│ Minor Iterations. . . . 0
+│ Restarts. . . . . . . . 0
+│ Crash Iterations. . . . 0
+│ Gradient Steps. . . . . 0
+│ Function Evaluations. . 1
+│ Gradient Evaluations. . 1
+│ Basis Time. . . . . . . 0.000000
+│ Total Time. . . . . . . 0.000000
+│ Residual. . . . . . . . 0.000000e+00
+│ Postsolved residual: 0.0000e+00
+│ 
+│ 
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINTReading options file C:\Users\Henry\AppData\Local\Temp\jl_19E9.tmp
+│  > cumulative_iteration_limit 10000
+│ Read of options file complete.
+│ 
+│ Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│ Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│ 
+│ Preprocessed size   : 14
+│ 
+│ Crash Log
+│ major  func  diff  size  residual    step       prox   (label)
+│     0     0             0.0000e+00             0.0e+00 (z_p[D[X])
+│ 
+│ Major Iteration Log
+│ major minor  func  grad  residual    step  type prox    inorm  (label)
+│     0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│ 
+│ Major Iterations. . . . 0
+│ Minor Iterations. . . . 0
+│ Restarts. . . . . . . . 0
+│ Crash Iterations. . . . 0
+│ Gradient Steps. . . . . 0
+│ Function Evaluations. . 1
+│ Gradient Evaluations. . 1
+│ Basis Time. . . . . . . 0.000000
+│ Total Time. . . . . . . 0.000000
+│ Residual. . . . . . . . 0.000000e+00
+│ Postsolved residual: 0.0000e+00
+│ 
+│ 
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINT9×3 DataFrame
+│  Row │ var        value    margin
+│      │ MPSGESca…  Float64  Float64
+│ ─────┼─────────────────────────────
+│    1 │ D[Y]           1.0      0.0
+│    2 │ D[X]           1.0      0.0
+│    3 │ D[W]           1.0      0.0
+│    4 │ P[X]           1.0      0.0
+│    5 │ P[Y]           1.0      0.0
+│    6 │ P[W]           1.0      0.0
+│    7 │ P[L]           1.0      0.0
+│    8 │ P[K]           1.0      0.0
+│    9 │ CONS         200.0      0.0
+│ 
+│ Expected output:
+│ 
+│ [...]
+│  > cumulative_iteration_limit 0
+│ Read of options file complete.
+│ 
+│ Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│ Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│ Preprocessed size   : 14
+│ 
+│ Major Iteration Log
+│ major minor  func  grad  residual    step  type prox    inorm  (label)
+│     0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│ 
+│ Major Iterations. . . . 0
+│ Minor Iterations. . . . 0
+│ Restarts. . . . . . . . 0
+│ Crash Iterations. . . . 0
+│ Gradient Steps. . . . . 0
+│ Function Evaluations. . 1
+│ Gradient Evaluations. . 1
+│ Basis Time. . . . . . . 0.000000
+│ Total Time. . . . . . . 0.000000
+│ Residual. . . . . . . . 0.000000e+00
+│ Postsolved residual: 0.0000e+00
+│ 
+│ 
+│ Solver Status: LOCALLY_SOLVED
+│ [...]
+│  > cumulative_iteration_limit 10000
+│ Read of options file complete.
+│ 
+│ Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│ Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│ 
+│ Preprocessed size   : 14
+│ 
+│ Crash Log
+│ major  func  diff  size  residual    step       prox   (label)
+│     0     0             0.0000e+00             0.0e+00 (z_p[D[X])
+│ 
+│ Major Iteration Log
+│ major minor  func  grad  residual    step  type prox    inorm  (label)
+│     0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│ 
+│ Major Iterations. . . . 0
+│ Minor Iterations. . . . 0
+│ Restarts. . . . . . . . 0
+│ Crash Iterations. . . . 0
+│ Gradient Steps. . . . . 0
+│ Function Evaluations. . 1
+│ Gradient Evaluations. . 1
+│ Basis Time. . . . . . . 0.000000
+│ Total Time. . . . . . . 0.000000
+│ Residual. . . . . . . . 0.000000e+00
+│ Postsolved residual: 0.0000e+00
+│ 
+│ 
+│ Solver Status: LOCALLY_SOLVED
+│ Model Status: FEASIBLE_POINT9×3 DataFrame
+│  Row │ var        value    margin  
+│      │ MPSGESca…  Float64  Float64 
+│ ─────┼─────────────────────────────
+│    1 │ D[Y]           1.0      0.0
+│    2 │ D[X]           1.0      0.0
+│    3 │ D[W]           1.0      0.0
+│    4 │ P[X]           1.0      0.0
+│    5 │ P[Y]           1.0      0.0
+│    6 │ P[W]           1.0      0.0
+│    7 │ P[L]           1.0      0.0
+│    8 │ P[K]           1.0      0.0
+│    9 │ CONS         200.0      0.0
+│ 
+│   diff =
+│    [...]
+│     Reading options file C:\Users\Henry\AppData\Local\Temp\jl_19E8.tmp
+│     > cumulative_iteration_limit 0
+│    Read of options file complete.
+│    
+│    Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│    Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│    Preprocessed size   : 14
+│    
+│    Major Iteration Log
+│    major minor  func  grad  residual    step  type prox    inorm  (label)
+│        0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│    
+│    Major Iterations. . . . 0
+│    Minor Iterations. . . . 0
+│    Restarts. . . . . . . . 0
+│    Crash Iterations. . . . 0
+│    Gradient Steps. . . . . 0
+│    Function Evaluations. . 1
+│    Gradient Evaluations. . 1
+│    Basis Time. . . . . . . 0.000000
+│    Total Time. . . . . . . 0.000000
+│    Residual. . . . . . . . 0.000000e+00
+│    Postsolved residual: 0.0000e+00
+│    
+│    
+│    Solver Status: LOCALLY_SOLVED
+│    [...]
+│     Model Status: FEASIBLE_POINTReading options file C:\Users\Henry\AppData\Local\Temp\jl_19E9.tmp
+│     > cumulative_iteration_limit 10000
+│    Read of options file complete.
+│    
+│    Path 5.0.03 (Fri Jun 26 10:05:33 2020)
+│    Written by Todd Munson, Steven Dirkse, Youngdae Kim, and Michael Ferris
+│    
+│    Preprocessed size   : 14
+│    
+│    Crash Log
+│    major  func  diff  size  residual    step       prox   (label)
+│        0     0             0.0000e+00             0.0e+00 (z_p[D[X])
+│    
+│    Major Iteration Log
+│    major minor  func  grad  residual    step  type prox    inorm  (label)
+│        0     0     1     1 0.0000e+00           I 0.0e+00 0.0e+00 (z_p[D[X])
+│    
+│    Major Iterations. . . . 0
+│    Minor Iterations. . . . 0
+│    Restarts. . . . . . . . 0
+│    Crash Iterations. . . . 0
+│    Gradient Steps. . . . . 0
+│    Function Evaluations. . 1
+│    Gradient Evaluations. . 1
+│    Basis Time. . . . . . . 0.000000
+│    Total Time. . . . . . . 0.000000
+│    Residual. . . . . . . . 0.000000e+00
+│    Postsolved residual: 0.0000e+00
+│    
+│    
+│    Solver Status: LOCALLY_SOLVED
+│    Model Status: FEASIBLE_POINT9×3 DataFrame
+│     Row │ var        value    margin  
+│         margin
+│         │ MPSGESca…  Float64  Float64 
+│    Float64
+│    ─────┼─────────────────────────────
+│       1 │ D[Y]           1.0      0.0
+│       2 │ D[X]           1.0      0.0
+│       3 │ D[W]           1.0      0.0
+│       4 │ P[X]           1.0      0.0
+│       5 │ P[Y]           1.0      0.0
+│       6 │ P[W]           1.0      0.0
+│       7 │ P[L]           1.0      0.0
+│       8 │ P[K]           1.0      0.0
+│       9 │ CONS         200.0      0.0
+└ @ Documenter D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\src\MyModel.jl:18
+ERROR: LoadError: makedocs encountered a doctest error. Terminating build
+Stacktrace:
+ [1] error(s::String)
+   @ Base .\error.jl:44
+ [2] runner(::Type{Documenter.Builder.Doctest}, doc::Documenter.Document)
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\builder_pipeline.jl:213
+ [3] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+   @ Documenter.Selectors C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\utilities\Selectors.jl:170
+ [4] #95
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:283 [inlined]
+ [5] withenv(::Documenter.var"#95#96"{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+   @ Base .\env.jl:265
+ [6] #93
+   @ C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:282 [inlined]
+ [7] cd(f::Documenter.var"#93#94"{Documenter.Document}, dir::String)
+   @ Base.Filesystem .\file.jl:101
+ [8] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{sitename::String, modules::Vector{Module}})
+   @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\makedocs.jl:281
+ [9] top-level scope
+   @ D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+in expression starting at D:\work\MIT Dropbox\Yen-Heng Chen\2025\2025-01_Julia\Exercises\MyModel\docs\make.jl:4
+
+At this point, the issue is no longer syntax—it's that jldoctest is trying to compare a large, variable solver output against your expected output, and they don't match exactly.
+
+A few things in your output are inherently unstable:
+
+Temporary filenames:
+
+C:\Users\Henry\AppData\Local\Temp\jl_19E8.tmp
+C:\Users\Henry\AppData\Local\Temp\jl_19E9.tmp
+Formatting of DataFrames (column widths, wrapping).
+
+Solver log formatting.
+
+Missing line breaks such as:
+
+Model Status: FEASIBLE_POINTReading options file ...
+versus your expected output.
+
+For this kind of function, I would not use jldoctest at all.
+
+Replace:
+
+```jldoctest
+julia> using MyModel
+
+julia> CGE_M21()
+...
+```
+with:
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+```
+or even:
+
+```julia
+using MyModel
+CGE_M21()
+```
+julia-repl renders as a REPL session in the docs but does not execute or verify the output.
+
+This is exactly what most packages do for examples that:
+
+call external solvers,
+
+print long logs,
+
+create temporary files,
+
+return large tables.
+
+Use jldoctest only for stable examples like:
+
+```jldoctest
+julia> 2 + 2
+4
+```
+or
+
+```jldoctest
+julia> square(3)
+9
+```
+where the output is deterministic.
+
+So my recommendation is:
+
+"""
+# Examples
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+"""
+
+
+and then rerun:
+
+```julia
+include("docs/make.jl")
+The doctest phase should stop complaining about this example because it will no longer be treated as a doctest.
+
+
+Sony XQD G Series 64GB Memory Card - QDG64EJ QDG64F can this card be used on nikon z6
+
+Yes. The original Sony XQD G Series 64GB Memory Card QDG64F/J is compatible with the Nikon Z6 because the Z6 was designed with an XQD card slot and supports XQD cards out of the box. 
+
+A few notes:
+
+The Sony G-series XQD cards (including QDG64E and QDG64F variants) are commonly used in Nikon cameras and are advertised as compatible with Nikon systems. 
+
+The original Z6 supports both XQD and (with newer firmware) CFexpress Type B cards. XQD cards work regardless of the CFexpress upgrade.
+
+64 GB is enough for general photography, but if you're shooting lots of RAW bursts or video, you may prefer 120 GB or larger.
+
+One thing to double-check is whether the card is:
+
+QDG64E (older generation), or
+
+QDG64F (newer G-series generation).
+
+Both generally work in Z-series cameras, though Nikon's official approved-card lists have changed over time and sometimes lag behind newer Sony model numbers. Users have reported using QD-G64F cards successfully in Z6/Z7 bodies. 
+
+If you're buying used, I'd also want to know:
+
+Is your camera the original Z6 or the Z6 II?
+
+What price is the seller asking for the card?
+
+At current prices, a CFexpress Type B card is sometimes a better value than buying an older used XQD card.
+
+
+
+
+
+
+For an original Nikon Z6, the card will work, but $70 for a used 64 GB XQD card is not especially attractive today.
+
+A few considerations:
+
+64 GB is relatively small by current standards, especially if you shoot RAW or video.
+
+XQD cards are no longer the dominant format; the Z6 can also use CFexpress Type B cards after a firmware update.
+
+New CFexpress Type B cards with higher capacities are often available at competitive prices, though you'd want to compare current market prices before buying.
+
+As a rough guide:
+
+If the card is new or nearly new and includes the original packaging, $70 is reasonable.
+
+If it's used, I'd personally expect something closer to the $40–60 range for a 64 GB XQD card.
+
+If you don't already own an XQD/CFexpress card reader, factor that cost in as well.
+
+Before buying, I'd check:
+
+The exact model number (QDG64E vs. QDG64F).
+
+Whether the seller can show that the card formats and works correctly in a camera.
+
+The firmware version on your Z6 if you're considering CFexpress cards as an alternative.
+
+If you'd like, I can also look up current prices for new and used XQD and CFexpress Type B cards to see how $70 compares in today's market.
+
+
+
+
+
+
+yes, please look up current prices for new and used cards for me
+
+Yes. The Sony G Series 120GB XQD (QD-G120F) is officially approved by Nikon for use in the original Z6. Nikon's compatibility list for the Z6 specifically includes the Sony G Series QD-G120F (120GB) model. 
+
+Sony G Series 120GB XQD Memory Card
+
+A few points relevant to your Z6:
+
+The original Z6 was designed around XQD cards, so XQD compatibility is native. 
+
+The QD-G120F is one of Sony's faster G-series XQD cards, rated up to about 440 MB/s read and 400 MB/s write. 
+
+Nikon's approved-card list includes both the 120 GB and 240 GB Sony G-series "F" cards for the Z6. 
+
+Independent testing on the Z6 found Sony G-series XQD cards among the best-performing XQD cards for buffer clearing and continuous shooting. 
+
+If you're considering buying one, the more important question is price. A new 120 GB QD-G120F still sells for around $198–200 today. 
+
+What price is the seller asking for the 120 GB card? If it's used, I can help judge whether it's a good deal compared with current market value.
+
+
+julia> CGE_M21
+CGE_M21 (generic function with 3 methods)  how to find the 3 methods of CGE_M21
+
+To see the three methods of CGE_M21, use:
+
+julia> methods(CGE_M21)
+You'll get output similar to:
+
+# 3 methods for generic function "CGE_M21":
+[1] CGE_M21()
+[2] CGE_M21(trx)
+[3] CGE_M21(trx, lbs)
+(or whatever signatures you actually defined). The methods function lists every method along with the file and line where it was defined. 
+
+You can also inspect a specific method:
+
+julia> @which CGE_M21()
+or
+
+julia> @which CGE_M21(0.1)
+to see exactly which method will be called.
+
+One subtle point: if you defined
+
+function CGE_M21(trx=0.0, lbs=1.0)
+    ...
+end
+Julia automatically creates three methods:
+
+CGE_M21()
+CGE_M21(trx)
+CGE_M21(trx, lbs)
+because default arguments are implemented by generating additional methods behind the scenes. That's why Julia reports:
+
+CGE_M21 (generic function with 3 methods)
+even though you only wrote one function definition. 
+
+Try:
+
+julia> methods(CGE_M21)
+and paste the output if you'd like help interpreting it.
+
+
+
+
+
+
+is julia-repl a doctest
+
+No.
+
+julia-repl and jldoctest look similar in the rendered documentation, but they behave very differently.
+
+jldoctest
+```jldoctest
+julia> 2 + 2
+4
+
+- **Executed by Documenter**
+- Output is compared against the expected output
+- Documentation build fails if they don't match
+- Useful for keeping examples correct
+
+For example:
+
+```markdown
+```jldoctest
+julia> sqrt(9)
+3.0
+
+Documenter actually runs `sqrt(9)` and checks that the result is `3.0`.
+
+---
+
+### `julia-repl`
+
+```markdown
+```julia-repl
+julia> 2 + 2
+4
+
+- Rendered as a REPL session
+- **Not executed**
+- **Not checked**
+- Just displayed to the reader
+
+You can even write:
+
+```markdown
+```julia-repl
+julia> 2 + 2
+5
+
+and Documenter will happily build the docs because it never verifies the output.
+
+---
+
+### For your `CGE_M21()` example
+
+Since it:
+
+- launches a solver,
+- writes temporary files,
+- prints many lines of output,
+- may change output formatting between versions,
+
+`julia-repl` is usually the right choice:
+
+````markdown
+# Examples
+
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21()
+
+This shows users how to run the function without forcing Documenter to verify hundreds of lines of solver output.
+
+### A third option: `julia`
+
+There's also:
+
+```markdown
+```julia
+using MyModel
+CGE_M21()
+```
+```
+
+which is just syntax-highlighted Julia code, not a REPL session and not a doctest.
+
+A common pattern is:
+
+- `jldoctest` for small deterministic examples.
+- `julia-repl` for interactive examples with large or variable output.
+- `julia` for code snippets where output is unimportant.
+
+how should i call julia-repl
+
+You would usually refer to it as:
+
+a julia-repl code block
+
+a Julia REPL code block
+
+a julia-repl block in Documenter
+
+a REPL example
+
+For example:
+
+I changed the example from a jldoctest to a julia-repl block because the output is too long and variable.
+
+or
+
+Documenter supports both jldoctest blocks and julia-repl blocks.
+
+If you're speaking rather than writing, most Julia users would say:
+
+"a Julia REPL block"
+
+or
+
+"a REPL example"
+
+rather than literally saying "julia dash repl".
+
+Quick terminology
+Markdown fence	Common name
+```jldoctest	doctest block
+```julia-repl	Julia REPL block / REPL example
+```julia	Julia code block
+So if you're asking for help on Discourse or GitHub, a natural sentence would be:
+
+"My function example is in a julia-repl block rather than a jldoctest because it prints solver logs."
+
+Most Julia developers will immediately understand what you mean.
+
+
+is Documenter the dependency of DecumenterTools
+
+I checked your repository URL format, and the likely issue is that GitHub Pages is enabled, but nothing has been published to the Pages branch yet.
+
+With "Deploy from a branch", GitHub Pages serves files from a specific branch/folder (often gh-pages or main/docs). Simply generating:
+
+include("docs/make.jl")
+creates files only on your local machine:
+
+MyModel/docs/build/
+Those files are not automatically uploaded to GitHub.
+
+Check Pages settings
+In:
+
+Settings → Pages
+look for something like:
+
+Source: Deploy from a branch
+Branch: gh-pages /(root)
+or
+
+Branch: main /docs
+What exactly are the Branch and Folder values?
+
+Easiest way to get something online right now
+If Pages is configured as:
+
+Branch: main
+Folder: /docs
+then GitHub expects an index.html directly under the repository's docs/ directory.
+
+Your generated file is currently:
+
+docs/build/index.html
+So GitHub won't find it.
+
+You could temporarily copy:
+
+docs/build/*
+into
+
+docs/
+commit and push, then GitHub Pages would serve it.
+
+However, this is not the usual Documenter workflow.
+
+Recommended Julia workflow
+Add this to docs/make.jl:
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+and use GitHub Actions to automatically publish the contents of docs/build/ to a gh-pages branch.
+
+Then your documentation will appear at:
+
+MyModel documentation URL
+
+without manually copying files.
+
+Next step
+Tell me what Settings → Pages shows for:
+
+Branch:
+Folder:
+and whether there is currently a gh-pages branch in the repository.
+
+With those two pieces of information I can give the exact commands needed to make the docs appear online.
+
+
+
+
+
+
+https://chenyhmitedu.github.io/MyModel/ still shows 404 file not found
+
+If both of these URLs return 404:
+
+Repository
+
+GitHub Pages site
+
+then the most likely explanation is that GitHub Pages has not actually been published yet.
+
+Let's verify a few things.
+
+Check 1: Does the repository exist publicly?
+Open:
+
+Repository URL
+
+Do you see the repository contents, or do you get a GitHub "Page not found"?
+
+If you get "Page not found", the repo may be private or the name is different.
+
+If you see the repo, continue.
+
+Check 2: What branch is Pages serving?
+Go to:
+
+Repository → Settings → Pages
+and tell me exactly what it says for:
+
+Source:
+Branch:
+Folder:
+For example:
+
+Source: Deploy from a branch
+Branch: main
+Folder: /docs
+or
+
+Source: Deploy from a branch
+Branch: gh-pages
+Folder: /(root)
+Check 3: Is there a Pages deployment?
+Go to:
+
+Repository → Actions
+or look at the top of the Pages settings page.
+
+Do you see a message like:
+
+Your site is live at:
+https://chenyhmitedu.github.io/MyModel/
+or do you see an error message?
+
+Check 4: Did you push the generated files?
+Remember that:
+
+include("docs/make.jl")
+only creates:
+
+docs/build/index.html
+on your computer.
+
+GitHub cannot see those files unless they are committed and pushed to the branch/folder that Pages is serving.
+
+Please paste the contents of:
+
+Settings → Pages
+especially the three lines:
+
+Source:
+Branch:
+Folder:
+and I can tell you exactly what needs to be changed.
+
+
+
+
+
+
+MyModel is a public repo
+
+Good news: the repository definitely exists and is public. I can see chenyhmitedu/MyModel. 
+
+The reason you're getting a 404 is almost certainly that GitHub Pages has not been given any files to publish yet.
+
+Looking at the repository, I can see a docs/ directory, but I do not see a gh-pages branch or any evidence that the generated docs/build/ output has been published. 
+
+Let's verify in GitHub
+Go to:
+
+MyModel → Settings → Pages
+and look for a message like:
+
+Your site is live at ...
+or
+
+GitHub Pages source
+Please tell me the exact values of:
+
+Source:
+Branch:
+Folder:
+For example:
+
+Source: Deploy from a branch
+Branch: main
+Folder: /(root)
+or
+
+Source: Deploy from a branch
+Branch: main
+Folder: /docs
+Most likely fix
+If you just want the docs online quickly, do this:
+
+Copy everything from
+
+docs/build/
+into
+
+docs/
+so that docs/index.html exists.
+
+Commit and push.
+
+In GitHub Pages settings choose:
+
+Source: Deploy from a branch
+Branch: main
+Folder: /docs
+Wait a few minutes.
+
+Then your docs should appear at:
+
+https://chenyhmitedu.github.io/MyModel/
+GitHub Pages serves project sites at username.github.io/repository-name/. 
+
+Better long-term fix
+The Julia-standard approach is to use Documenter.deploydocs() and GitHub Actions. Then every time you push:
+
+include("docs/make.jl")
+is run automatically by GitHub and the generated docs are published to a gh-pages branch.
+
+If you show me the current Source / Branch / Folder settings from the Pages page, I can tell you the exact next step.
+
+
+
+
+
+
+I would like to start over again. currently, for /docs, it is located under /MyModel. my question is: should I commit /docs to the repo MyModel, or should I commit /docs to the repo chenyhmitedu.github.io
+
+You should commit docs/ to the MyModel repository, not to chenyhmitedu.github.io.
+
+The standard Julia/Documenter layout is:
+
+MyModel/
+├── src/
+│   └── MyModel.jl
+├── Project.toml
+├── docs/
+│   ├── Project.toml
+│   ├── make.jl
+│   └── src/
+│       └── index.md
+└── README.md
+and all of that lives in:
+
+MyModel repository
+
+What is chenyhmitedu.github.io for?
+That repository is only needed if you want to manually manage a GitHub Pages site.
+
+For a Julia package, the usual workflow is:
+
+Keep documentation sources in MyModel/docs/.
+
+Run Documenter to generate HTML.
+
+Have GitHub Actions publish the generated HTML to a special branch called gh-pages.
+
+GitHub Pages serves the contents of gh-pages.
+
+Result:
+
+Source files:
+    MyModel/docs/src/index.md
+
+Generated site:
+    https://chenyhmitedu.github.io/MyModel/
+No separate chenyhmitedu.github.io repository is required.
+
+If starting from scratch
+I would recommend:
+
+In MyModel
+Keep:
+
+MyModel/
+└── docs/
+    ├── Project.toml
+    ├── make.jl
+    └── src/
+        └── index.md
+Commit and push:
+
+git add docs
+git commit -m "Add documentation"
+git push
+Do not commit
+docs/build/
+to the repository.
+
+docs/build/ is generated output and is usually ignored.
+
+Then publish with Documenter
+Eventually your docs/make.jl will contain something like:
+
+using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel.jl",
+    modules = [MyModel],
+)
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+and GitHub Actions will create/update the gh-pages branch automatically.
+
+My recommendation
+Delete any experimental files you put in chenyhmitedu.github.io and treat:
+
+MyModel/docs/
+as the single source of truth for your documentation.
+
+Then we can set up GitHub Pages the Julia way, using Documenter.deploydocs() and a GitHub Actions workflow. That will publish to:
+
+https://chenyhmitedu.github.io/MyModel/
+directly from the MyModel repository.
+
+
+where can I find the branch gh-pages
+
+The gh-pages branch is not created automatically just by writing docs locally. It only appears if you (or a tool like Documenter) actually publish documentation to it.
+
+Right now, in your situation, it is very likely that:
+
+❌ gh-pages does not exist yet in your repository
+
+That’s normal at this stage.
+
+Where you would find gh-pages (if it exists)
+Go to your repo:
+
+MyModel repository
+
+Then:
+
+Click the branch dropdown (top-left, usually says main)
+
+Type gh-pages in the search box
+
+Or go to:
+
+https://github.com/chenyhmitedu/MyModel/branches
+If it exists, you’ll see it there.
+
+If you don’t see it (most likely case)
+That means:
+
+You have never deployed documentation
+
+So GitHub Pages has no content to serve
+
+Hence your 404
+
+How gh-pages is normally created (Julia way)
+In Julia, you typically do NOT manually create it.
+
+Instead, you add this to docs/make.jl:
+
+using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel",
+    modules = [MyModel],
+)
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+Then when GitHub Actions runs, it will:
+
+Build docs (docs/build/)
+
+Push them to gh-pages automatically
+
+GitHub Pages serves that branch
+
+Why your site is 404 right now
+Because:
+
+gh-pages branch ❌ does not exist
+
+OR GitHub Pages is not pointing to it yet
+
+OR no files have been deployed
+
+So this URL:
+
+https://chenyhmitedu.github.io/MyModel/
+has nothing to serve yet → 404.
+
+Quick check you can do now
+Run this mentally:
+
+Do you see a gh-pages branch in the branch dropdown?
+
+If the answer is no, then nothing is broken—you just haven’t deployed docs yet.
+
+If you want, I can help you set it up cleanly
+I can give you a minimal working setup (copy-paste) for:
+
+docs/make.jl
+
+GitHub Actions workflow file
+
+correct Pages settings
+
+so that after git push, your docs automatically appear online.
+
+
+
+
+
+
+gh-pages doesn't exist. where and how should I create it
+
+You should not manually create gh-pages in most Julia workflows.
+
+For Documenter.jl, the correct approach is:
+
+❗ Let GitHub Actions + Documenter create and manage gh-pages for you automatically.
+
+Why you don’t create it yourself
+gh-pages is a deployment branch, not a source branch. It is:
+
+generated from docs/build/
+
+overwritten every time you deploy docs
+
+not edited by hand
+
+So if you create it manually, you’ll likely just create confusion or overwrite it later.
+
+The correct Julia way (recommended)
+Step 1: edit docs/make.jl
+Make sure you have:
+
+using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel.jl",
+    modules = [MyModel],
+)
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+Step 2: add GitHub Actions workflow
+Create this file in your repo:
+
+.github/workflows/docs.yml
+with:
+
+name: Documenter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+
+      - uses: julia-actions/cache@v1
+
+      - run: julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+
+      - run: julia --project=docs docs/make.jl
+
+      - uses: julia-actions/documenter@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+Step 3: push to GitHub
+git add .
+git commit -m "Set up docs deployment"
+git push
+What happens next (important)
+GitHub Actions will:
+
+Run docs/make.jl
+
+Generate HTML in docs/build/
+
+Automatically create/update a hidden gh-pages branch
+
+Publish it to:
+
+https://chenyhmitedu.github.io/MyModel/
+Step 4: enable GitHub Pages
+Go to:
+
+GitHub Pages settings
+
+Set:
+
+Source: Deploy from a branch
+
+Branch: gh-pages
+
+Folder: / (root)
+
+Key idea
+You do:
+
+push to main
+
+GitHub does:
+
+build docs → create gh-pages → publish website
+
+You never manually create gh-pages in this setup.
+
+Why your current setup failed
+Because right now:
+
+❌ no GitHub Actions workflow
+
+❌ no deployment step
+
+❌ no gh-pages branch created yet
+
+So GitHub Pages has nothing to serve → 404
+
+If you want, I can simplify further
+I can give you a minimal 3-file setup that works 100%:
+
+docs/make.jl
+
+.github/workflows/docs.yml
+
+docs/Project.toml
+
+and you’ll get a working site in one push.
+
+
+
+
+
+
+This is my make.jl:  using Documenter
+using MyModel
+
+makedocs(
+    sitename = "MyModel",
+    format = Documenter.HTML(),
+    modules = [MyModel]
+    #checkdocs = :none
+)
+
+# Documenter can also automatically deploy documentation to gh-pages.
+# See "Hosting Documentation" and deploydocs() in the Documenter manual
+# for more information.
+#=deploydocs(
+    repo = "<repository url>"
+)=#
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+
+
+Your make.jl looks mostly correct. The next thing I'd check is whether the deployment workflow exists. deploydocs(...) by itself does nothing unless GitHub Actions runs docs/make.jl and has permission to push to gh-pages.
+
+A couple of observations:
+
+1. Add the full repository URL
+Documenter examples usually use:
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+This may work, but I would change it to:
+
+deploydocs(
+    repo = "https://github.com/chenyhmitedu/MyModel.git",
+)
+or follow the exact format from the Documenter hosting guide.
+
+2. Do you have .github/workflows/docs.yml?
+Check whether your repository contains:
+
+MyModel/
+└── .github/
+    └── workflows/
+        └── docs.yml
+Without that workflow, nothing will ever create gh-pages.
+
+3. Check GitHub Actions
+Go to:
+
+MyModel Actions tab
+
+Do you see any workflow runs?
+
+If there are no workflows at all, then gh-pages will never be created.
+
+If there are failed workflow runs, the error message will tell us exactly what's wrong.
+
+4. Check the repository contents
+Your repository should contain at least:
+
+MyModel/
+├── Project.toml
+├── src/
+├── docs/
+│   ├── Project.toml
+│   ├── make.jl
+│   └── src/
+│       └── index.md
+└── .github/
+    └── workflows/
+        └── docs.yml
+5. Simplest diagnostic
+Can you tell me:
+
+Does .github/workflows/docs.yml exist?
+
+What do you see at the Actions page:
+GitHub Actions for MyModel
+
+If you paste the contents of docs.yml (or tell me it doesn't exist), I can tell you the exact next step. Most likely the missing piece is the GitHub Actions workflow that builds the docs and creates the gh-pages branch.
+
+
+but I get the following warning: Info: SetupBuildDirectory: setting up build directory.
+[ Info: Doctest: running doctests.
+[ Info: ExpandTemplates: expanding markdown templates.
+[ Info: CrossReferences: building cross-references.
+[ Info: CheckDocument: running document checks.
+[ Info: Populate: populating indices.
+[ Info: RenderDocument: rendering document.
+[ Info: HTMLWriter: rendering HTML pages.
+[ Info: Automatic version="0.1.0" for inventory from ..\Project.toml
+┌ Warning: Documenter could not auto-detect the building environment. Skipping deployment.
+└ @ Documenter C:\Users\Henry\.julia\packages\Documenter\AXNMp\src\deployconfig.jl:93
+
+is there anyway for creating Github Actions automatically
+
+Yes. Documenter can generate most of the documentation scaffolding automatically, including a GitHub Actions workflow.
+
+If you have DocumenterTools installed, from the package root (MyModel/) you can run:
+
+using DocumenterTools
+
+DocumenterTools.generate()
+or in some versions:
+
+DocumenterTools.generate("docs")
+This creates a standard documentation setup based on the current recommendations from the Documenter ecosystem.
+
+However, since you've already created docs/ manually, I would not run generate() blindly—it may overwrite files you've already customized.
+
+Easiest approach now
+Since you already have:
+
+MyModel/
+├── docs/
+│   ├── make.jl
+│   ├── Project.toml
+│   └── src/index.md
+the simplest path is to create just one file manually:
+
+.github/workflows/documentation.yml
+That's a one-time setup.
+
+Another option: copy the official template
+The Documenter manual provides a ready-made GitHub Actions workflow:
+
+Documenter Hosting Documentation
+
+Most Julia package authors simply copy that workflow into .github/workflows/documentation.yml.
+
+What I would do in your situation
+Since your docs are already building successfully locally:
+
+Keep your current docs/.
+
+Create .github/workflows/documentation.yml.
+
+Push to GitHub.
+
+Let GitHub Actions create gh-pages.
+
+That is the standard Julia package workflow and avoids regenerating anything.
+
+If you want, I can also check your current docs/Project.toml and make.jl and give you the minimal workflow file specifically tailored to your MyModel repository.
+
+
+
+
+
+
+When I delete docs and rerun DocumenterTools.generate("docs"), it doesn't create .github/workflows/documentation.yml
+
+Either works with GitHub Actions:
+
+.github/workflows/documentation.yml
+or
+
+.github/workflows/documentation.yaml
+GitHub recognizes both .yml and .yaml.
+
+However, the overwhelming convention in Julia packages and in GitHub Actions examples is:
+
+.github/workflows/documentation.yml
+so I'd recommend using documentation.yml.
+
+After creating it, commit and push:
+
+git add .github/workflows/documentation.yml
+git commit -m "Add documentation workflow"
+git push
+Then check:
+
+MyModel Actions tab
+
+If the workflow starts running, you're on the right track. If it fails, paste the error message from the Actions log and I can help diagnose it.
+
+
+https://github.com/chenyhmitedu/MyModel/actions/runs/27476535045/workflow the link shows "invalid workflow file"
+
+"Invalid workflow file" means GitHub could not even parse the YAML file, so the workflow never started. The most common causes are indentation errors, malformed YAML, or invalid GitHub Actions syntax. 
+
+To diagnose it, I need the exact contents of:
+
+.github/workflows/documentation.yml
+Please paste the entire file.
+
+Also, the URL you pasted:
+
+https://github.com/chenyhmitedu/MyModel/actions/runs/27476535045/workflow
+isn't accessible to me. Instead, open the workflow page and look for a message like:
+
+Invalid workflow file
+
+.github/workflows/documentation.yml#Lxx
+GitHub usually tells you:
+
+the filename
+
+the line number (L12, L27, etc.)
+
+sometimes the exact parsing error
+
+Paste that message too.
+
+A very common mistake is this block:
+
+run: julia --project=docs -e '
+  using Pkg
+  Pkg.develop(PackageSpec(path=pwd()))
+  Pkg.instantiate()
+'
+GitHub Actions YAML often dislikes multiline single-quoted strings. Using a block scalar is safer:
+
+- name: Install dependencies
+  run: |
+    julia --project=docs -e '
+      using Pkg
+      Pkg.develop(PackageSpec(path=pwd()))
+      Pkg.instantiate()
+    '
+But before guessing, let's inspect the actual file. Paste the complete documentation.yml and I can point to the exact line that's invalid.
+
+
 name: Documentation
 
 on:
@@ -32,3 +2734,178 @@ jobs:
         run: julia --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+I can see the problem.
+
+This line is invalid YAML for GitHub Actions:
+
+tags: '*'
+tags must be a list, not a string.
+
+Change:
+
+on:
+  push:
+    branches:
+      - main
+    tags: '*'
+to:
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+There's also a second issue: the multiline run: command is fragile. I'd rewrite the whole workflow as:
+
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+
+      - name: Install dependencies
+        run: |
+          julia --project=docs -e '
+            using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.instantiate()
+          '
+
+      - name: Build and deploy docs
+        run: julia --project=docs docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+Or even simpler, since you don't need tag builds yet:
+
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+
+      - name: Install dependencies
+        run: julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+
+      - name: Build and deploy docs
+        run: julia --project=docs docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+After editing:
+
+git add .github/workflows/documentation.yml
+git commit -m "Fix workflow syntax"
+git push
+Then check:
+
+MyModel Actions tab
+
+If it still says "Invalid workflow file", GitHub will now give a line number. Paste that exact error and I'll pinpoint it.
+
+
+Can you send me the correct yaml file again
+
+Certainly. Save this as:
+
+.github/workflows/documentation.yml
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+
+      - name: Install dependencies
+        run: |
+          julia --project=docs -e '
+            using Pkg
+            Pkg.develop(PackageSpec(path=pwd()))
+            Pkg.instantiate()
+          '
+
+      - name: Build and deploy documentation
+        run: julia --project=docs docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+A couple of additional checks:
+
+docs/make.jl
+Make sure the end of the file contains:
+
+deploydocs(
+    repo = "github.com/chenyhmitedu/MyModel.git",
+)
+docs/Project.toml
+Make sure it contains both Documenter and your package:
+
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+MyModel = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+To find your package UUID, look in:
+
+MyModel/Project.toml
+for the line:
+
+uuid = "..."
+and use that value.
+
+Push the workflow
+git add .github/workflows/documentation.yml
+git commit -m "Add documentation workflow"
+git push
+Then check:
+
+MyModel Actions tab
+
+If the workflow still fails, paste the first error message from the Actions log, and we can fix the next issue. The workflow should at least become valid YAML and start running.
+
+
+
+Voice
