@@ -390,7 +390,7 @@ uuid = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 version = "1.7.1"
 
 [[deps.MyModel]]
-deps = ["DocumenterTools", "JuMP", "MPSGE"]
+deps = ["Documenter", "DocumenterTools", "JuMP", "MPSGE"]
 path = "."
 uuid = "20dce7eb-ba5c-4b7a-96a6-abb813c879e2"
 version = "0.1.0"
