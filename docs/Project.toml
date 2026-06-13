@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+MyModel = "20dce7eb-ba5c-4b7a-96a6-abb813c879e2"
+
+[sources]
+MyModel = {path = ".."}

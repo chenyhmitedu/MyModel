@@ -3,6 +3,43 @@ module MyModel
 using JuMP
 using MPSGE
 
+"""
+    CGE_M21(trx=0.0, lbs=1.0)
+
+Markusen's M21 CGE example.
+
+1-region 2-sector 2-factor model.
+
+# Arguments
+- `trx::Float64=0.0`: the tax rate on X sector's primary inputs.
+- `dim::Float64=1.0`: the labor supply endowment index.
+
+# Examples
+```julia-repl
+julia> using MyModel
+
+julia> CGE_M21
+CGE_M21 (generic function with 3 methods)
+
+julia> CGE_M21()
+[...]
+Solver Status: LOCALLY_SOLVED
+Model Status: FEASIBLE_POINT9×3 DataFrame
+ Row │ var        value    margin  
+     │ MPSGESca…  Float64  Float64 
+─────┼─────────────────────────────
+   1 │ D[Y]           1.0      0.0
+   2 │ D[X]           1.0      0.0
+   3 │ D[W]           1.0      0.0
+   4 │ P[X]           1.0      0.0
+   5 │ P[Y]           1.0      0.0
+   6 │ P[W]           1.0      0.0
+   7 │ P[L]           1.0      0.0
+   8 │ P[K]           1.0      0.0
+   9 │ CONS         200.0      0.0
+
+```
+"""
 function CGE_M21(trx=0, lbs=1)
     # Model M21: Closed 2x2 Economy --  An Introduction to the Basics
     #= 
