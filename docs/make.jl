@@ -16,7 +16,7 @@ makedocs(
 )=#
 
 deploydocs(
-    repo = "github.com/chenyhmitedu/MyModel.git",
+    repo = "https://github.com/chenyhmitedu/MyModel.git",
 )
 
 
