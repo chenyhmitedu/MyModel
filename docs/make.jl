@@ -4,7 +4,7 @@ using MyModel
 makedocs(
     sitename = "MyModel",
     format = Documenter.HTML(),
-    modules = [MyModel]
+    modules = [MyModel],
     #checkdocs = :none
 )
 
